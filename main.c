@@ -28,9 +28,9 @@ int init_file(const char *file1_name, const char *file2_name) {
 	FILE *file;
     FILE *file2;
 
-	random_char[29] = '\0';
+	random_char[29] = '\0';                         /* чтобы массив воспринимался как строка, добавляем символ конца строки */   
 
-		for(int i = 0; i < 29; i++) {
+		for(int i = 0; i < 29; i++) {               /* заполняем массив (кроме последнего символа) случайными символами ascii с кодом от 0 до 100 */
 			random_char[i] = rand() % 100;	
 		}
 
@@ -38,17 +38,17 @@ int init_file(const char *file1_name, const char *file2_name) {
 		
 		if (file == NULL) {
 			printf("Cannot create the file %s", file1_name);
-            return 1;
+            return 1;                               /* выход из функции в случае ошибки */
 		}
 
 	fwrite(random_char, sizeof(char), 30, file);
 
 	fclose(file);
 
-    file2 = fopen(file2_name, "w+");
+    file2 = fopen(file2_name, "w+");                /* создаем второй файл */
 		if (file == NULL) {
 			printf("Cannot create the file %s", file2_name);
-            return 1;
+            return 1;                               /* выход из функции в случае ошибки */
 		}        
     fclose(file2);
     return 0;
@@ -86,7 +86,10 @@ int copy_file(const char *init_file_name, const char *copy_file_name) {
 
 }	
 
-/* функция запрашивает у пользователя, что он хочет сделать*/
+/* функция main запрашивает у пользователя, что он хочет сделать: 
+можно копировать информацию из существующего файла в другой существующий файл
+ или создать два новых файла, заполнить один из них массивом символов и скопировать содержимое 
+ этого файла в другой файл */
 int main () {
 
 	char name1[10];
@@ -99,7 +102,7 @@ int main () {
        
         c = getchar();
 
-        if ( (c == 'Y') || (c == 'y') ) {
+        if ( (c == 'Y') || (c == 'y') ) {                   /*если пользователь хочет посмотреть корректность работы программы без создания файлов*/
             	printf("The programm will create two new files.\nEnter the first and the second files' names:\n");
 	            scanf("%s %s", name1, name2);
                 i = init_file(name1, name2);
@@ -107,13 +110,13 @@ int main () {
                         i == 0 ? copy_file(name1, name2) : 1;
                          
 
-        } else if ( (c == 'N') || (c == 'n') ) {
+        } else if ( (c == 'N') || (c == 'n') ) {            
                 printf("Enter the first and the second existed files' names:\n");
                 scanf("%s %s", name1, name2);
                 i = copy_file(name1, name2);
 
 
-        } else {
+        } else {                                            /* еще раз запрашиваем пользователя, что он хочет сделать*/
                 printf("Plese input only 'Y' or 'N'\n");
                 main();
         }
