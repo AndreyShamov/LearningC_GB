@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* функция возвращает массив с именами файлов, находящихся в директории path */
+/* функция создает массив с именами файлов, находящихся в директории path */
 void my_ls(const char *path, char *files_name) {
 
     struct dirent *entry;  
