@@ -78,8 +78,8 @@ void max_and_min(const int *array, const int elem_numb, int *max, int *min);
 
 void year_temp (FILE *file, char *year_str);
 void month_temp (FILE *file, char *desired_value, data_month_t month_data, const int month);
-void day_temp (FILE *file, char *desired_value, data_day_t day_data);
-void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t hour_data, int *str_num);
+void day_temp (FILE *file, char *desired_value, data_day_t *day_data);
+void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t *hour_data, int *str_num);
 
 void minute_temp_option (FILE *file, const char *desired_value, const char *path);
 
@@ -235,7 +235,7 @@ void month_temp (FILE *file, char *desired_value, data_month_t month_data, int m
         desired_value[11] = '\0';                                /* добавляем символ конца строки */
 
         memset(&day_data, 0, sizeof(day_data));                  /* заполняем нулями структуру */
-        day_temp(file, desired_value, day_data);                 /* передаем структуру для заполнения в массив day_temp */
+        day_temp(file, desired_value, &day_data);                 /* передаем структуру для заполнения в массив day_temp */
 
         if (day_data.hours_ctr != 0) {                           /* если в отношении дня найденны данные (т.е. количество найденных измерений больше 1) */
 
@@ -274,7 +274,7 @@ void month_temp (FILE *file, char *desired_value, data_month_t month_data, int m
 
 Функция принимает ссылку на открытый файл file, строку со значениями YYYY;mm;dd; , структуру для заполнения
 */
-void day_temp (FILE *file, char *desired_value, data_day_t day_data) {
+void day_temp (FILE *file, char *desired_value, data_day_t *day_data) {
 
     static int byte_num = 0;                                                   /* переменная для хранения количества прочитанных байт */
     static int str_num = 0;                                                    /* переменная для хранения количества прочитанных строк */
@@ -284,7 +284,7 @@ void day_temp (FILE *file, char *desired_value, data_day_t day_data) {
 
     for (int hours = 0; hours < 24; hours++) {                                 /* счетчик количества часов */       
 
-        if ( hours > 10 ) {                                                    /* если число часов имеет один разряд (т.е. оно меньше 10) */
+        if ( hours < 10 ) {                                                    /* если число часов имеет один разряд (т.е. оно меньше 10) */
 
             first_digit = '0';                                                 /* записываем 0 в первый разряд */
             second_digit = (char) hours + '0';                                 /* записываем значения числа месяца во второй разряд */
@@ -300,17 +300,18 @@ void day_temp (FILE *file, char *desired_value, data_day_t day_data) {
         desired_value[13] = ';';                                               /* добавляем разделитель */
         desired_value[14] = '\0';                                              /* добавляем символ конца строки */
 
+        errors(7, 0,  desired_value);
         memset(&hour_data, 0, sizeof(hour_data));                              /* заполняем нулями структуру */        
-        hour_temp(file, &byte_num, desired_value, hour_data, &str_num);        /* передаем структуру hour_data для заполнения в функцию hour_temp */
+        hour_temp(file, &byte_num, desired_value, &hour_data, &str_num);       /* передаем структуру hour_data для заполнения в функцию hour_temp */
+
 
         if (hour_data.temp_ctr > 0) {                                          /* если значения часовой температуры записаны */
             
-            day_data.av_temp_per_hour[hours - 1] = average_temp(hour_data.temp_values, hour_data.temp_ctr);                             /* записываем в соответствующую ячейку массива av_temp_per_hour структуры day_data значение средней часовой температуры */
-            day_data.temp_max[hours - 1] = hour_data.max;                                                                               /*  записываем массив с максимальной температурой */
-            day_data.temp_min[hours - 1] = hour_data.max;                                                                               /*  записываем массивы с минимальной температурой */
-            
-            
-            max_and_min(hour_data.temp_values, hour_data.temp_ctr,  &day_data.temp_max[hours - 1],  &day_data.temp_min[hours - 1]);     
+            day_data->av_temp_per_hour[hours - 1] = average_temp(hour_data.temp_values, hour_data.temp_ctr);                             /* записываем в соответствующую ячейку массива av_temp_per_hour структуры day_data значение средней часовой температуры */
+            day_data->temp_max[hours - 1] = hour_data.max;                                                                               /*  записываем массив с максимальной температурой */
+            day_data->temp_min[hours - 1] = hour_data.max;
+            day_data->hours_ctr ++;                                                                               /*  записываем массивы с минимальной температурой */
+            errors(16, 0, "Done!");
 
         } else {
 
@@ -328,16 +329,19 @@ void day_temp (FILE *file, char *desired_value, data_day_t day_data) {
             error_str[10] = ' ';
             error_str[11] = desired_value[11];
             error_str[12] = desired_value[12];
-            error_str[14] = 'H';
+            error_str[13] = 'H';
             error_str[14] = '\0';
 
             errors(1, 0, error_str);
             continue;
-        }
+        } 
     }
 
-    max_and_min(day_data.av_temp_per_hour, day_data.hours_ctr, &day_data.max, &day_data.min);                         /* записываем среднюю дневную температуру */
-    day_data.average_temp = average_temp(day_data.av_temp_per_hour, day_data.hours_ctr);                                 /* записываем максимальную и минимальную дневную температуры */
+    int _tmp = 0;
+    max_and_min(day_data->temp_max, day_data->hours_ctr,  &day_data->max,  &_tmp);     
+    max_and_min(day_data->temp_min, day_data->hours_ctr,  &_tmp,  &day_data->min);
+
+    day_data->average_temp = average_temp(day_data->av_temp_per_hour, day_data->hours_ctr);                                 /* записываем максимальную и минимальную дневную температуры */
 
 }
 
@@ -443,7 +447,7 @@ void minute_temp_option (FILE *file, const char *desired_value, const char *path
 номер строки (необходим для вывода ошибок в лог-файл)
 */ 
 
-void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t hour_data, int *str_num) {
+void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t *hour_data, int *str_num) {
 
     char tmp[STRING_LENGHT];                                                                /* строка для хранения данных, полученных из файла */
     int elem = 0;                                                                           /* запись количества прочитанных элементов */
@@ -460,16 +464,36 @@ void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t hour
                                                                                            
         if( memcmp(tmp, desired_value, 14) == 0 ) {                                         /* ищем совпадения со строкой в формате YYYY;mm;dd;HH; */
    
-            if ( (minutes = read_two_digits(5, tmp[14], tmp[15], 0)) == -1) {               /* проверяем корректность значения минут в файле */
+            if ( (minutes = read_two_digits(4, tmp[14], tmp[15], 0)) == -1) {               /* проверяем корректность значения минут в файле */
         
                 errors(5, *str_num, tmp);                                                   /* если функция возвращает -1 (т. е. ошибку), записываем ее в лог и переходим к следующей строке */                       
                 continue; 
             }    
 
-            if (tmp[17] == '-') is_negative = 1;                                                      /* если значение температуры начинается с - (т.е. оно отрицательное), переменной i присваивается значение 1 */
 
-            if ( (temperature = read_two_digits(5, tmp[17 + is_negative], tmp[18 + is_negative], 0)) == -1) {       /* проверяем корректность значения температуры */
-        
+            
+
+            if (tmp[17] == '-') {
+                
+                is_negative = 1;                                            /* если значение температуры начинается с - (т.е. оно отрицательное), переменной i присваивается значение 1 */
+
+            } else {
+
+                is_negative = 0;
+            }    
+
+
+            if (tmp[18] == '\n') {                                                          /* если значение температуры состоит из 1 символа (например, 0) */
+
+                temperature = read_two_digits(5, '0', tmp[17], 0);                          /* отправляем для проверки один символ */
+
+            } else { 
+                
+                temperature = read_two_digits(5, tmp[17 + is_negative], tmp[18 + is_negative], 0); 
+            }
+                
+            if (temperature == -1) {                                                         /* проверяем корректность значения температуры */
+                       
                 errors(6, *str_num, tmp);                                                    /* если функция возвращает -1 (т. е. ошибку), записываем ее в лог и переходим к следующей строке файла */                                     
                 continue; 
             }    
@@ -480,8 +504,9 @@ void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t hour
 
             if (elem <= 70) {                                                               /* проверяем не переполнится ли массив значений с температурой */
                    
-                    hour_data.temp_values[elem-1] = temperature;                           /* записываем в структуру полученную температуру */
-                    hour_data.temp_ctr = elem;                                             /* записываем количество элементов в массиве с измерениями температуры */
+                    hour_data->temp_values[elem-1] = temperature;                           /* записываем в структуру полученную температуру */
+                    hour_data->temp_ctr = elem;                                             /* записываем количество элементов в массиве с измерениями температуры */
+                    printf("Temp = %d, num = %d\n", hour_data->temp_values[elem-1],hour_data->temp_ctr);
 
             } else {
 
@@ -491,7 +516,7 @@ void hour_temp (FILE *file, int *byte_num, char *desired_value, data_hour_t hour
 
         } else if (elem > 0) {                                                              /* если после совпавших значений прочитано значение, которое не совпадает вплоть до часов */
             
-            max_and_min(hour_data.temp_values, hour_data.temp_ctr, &hour_data.max, &hour_data.min);   /* вызываем функцию поиска максимального и минимального значения и записываем эти значения в переменные min и max*/
+            max_and_min(hour_data->temp_values, hour_data->temp_ctr, &hour_data->max, &hour_data->min);   /* вызываем функцию поиска максимального и минимального значения и записываем эти значения в переменные min и max*/
             
                 if ( (byte = ftell(file)) == -1) {                                          /* запрашиваем текущую позицию в файле */
             
@@ -521,7 +546,10 @@ void errors (const int error_num, int line_num, const char *line) {
         case 0: fprintf(log, "Internal error in function %s\n", line); break;
         case 1: fprintf(log, "No data with respect to %s\n", line); break;
         case 5: fprintf(log, "Problem with minutes in line %d:\n%s", line_num, line); break;
-        case 6: fprintf(log, "Problem with temperature value in line %d:\n%s", line_num, line); break;
+        case 6: fprintf(log, "Problem with temperature value in line %d:%s\n", line_num, line); break;
+
+        case 7: fprintf(log, "\n%s:", line); break;
+        case 16: fprintf(log, "%s", line); break;
             
         case 9: fprintf(log, "Problem with format in line %d:\n%s", line_num, line); break;
         case 10: fprintf(log, "Measurement frequency exceeded in line %d:\n%s", line_num, line); break;                /* превышена частота измерений */
@@ -559,16 +587,27 @@ if ( (option < 0) || (option > 6) ) {
         
         } else {
 
+            errors(16, 0, "Ошибка 1!");
             return -1;                                        /* возвращаем -1 если первый символ не является числом */
         }
 
 
         if( (second_d >= '0') && (second_d <= '9') ) {        /* проверяем является ли второй переданный символ числом */
                                 
-            tmp_num += (int)second_d - '0';                   /* вставляем прочитанный символ в разряд единиц числа  */
+            tmp_num += ((int)second_d - '0');                 /* вставляем прочитанный символ в разряд единиц числа  */
         
         } else {
 
+            char st[9];
+            st[0] = 'd';
+            st[1] = 'i';
+            st[2] = 'g';
+            st[3] = ':';
+            st[4] = ' ';
+            st[5] = second_d;
+            st[6] = '!';
+            st[7] = '\0';
+            errors(16, 0, st);
             return -1;                                        /* возвращаем -1 если второй символ не является числом */
         }
 
@@ -576,7 +615,7 @@ if ( (option < 0) || (option > 6) ) {
 
     if ( option == 0 ) return tmp_num;                          /* сразу возвращаем число, если функция вызвана без опций */
 
-    int values[5][2] = {1, 12, 1, 31, 0, 23, 0, 59, 0, 99};            /* двумерный массив со значениями для сравнения полученного числа */
+    int values[5][2] = {1, 12, 1, 31, 0, 23, 0, 59, 0, 99};     /* двумерный массив со значениями для сравнения полученного числа */
 
     for (int i = 1; i < 6; i++) {                               /* подбираем номер опции */
 
@@ -673,7 +712,7 @@ int read_arg(FILE *file, const int arg_num, const char *arg_value, const char *p
         data_day_t day_data = { 0 };
 
 
-        day_temp(file, data, day_data);
+        day_temp(file, data, &day_data);
 
         if (day_data.hours_ctr == 0) {                                                           /* если функция day_temp не запи списала ни одного значения */
 
@@ -683,6 +722,8 @@ int read_arg(FILE *file, const int arg_num, const char *arg_value, const char *p
 
         printf("Average temperature for %c%c.%c%c.%c%c%c%c was %dº Celsius.\n", data[8], data[9], data[5], 
         data[6],  data[0], data[1], data[2], data[3], day_data.average_temp); 
+
+        printf("Maximum temperature is %dº Celsius, minimum temperature is %dº Celsius.\n", day_data.max, day_data.min);
 
         return 0;
    }
@@ -702,10 +743,13 @@ int read_arg(FILE *file, const int arg_num, const char *arg_value, const char *p
         data_hour_t hour_temperature = { 0 };
         int av_temp = 0;
         int tempr = 0;
+        int str_num = 0;
 
         
-        hour_temp(file, &tempr, data, hour_temperature, &tempr);
+        hour_temp(file, &tempr, data, &hour_temperature, &str_num);
 
+        printf("temp_ctr = %d\n", hour_temperature.temp_ctr);
+        
         if (hour_temperature.temp_ctr == 0) {                                                     /* если после вызова функции не нашлось искомого значения */
 
             printf("No measurments found for %s\n", arg_value);                                   /* выводим ошибку и выходим из функции */
